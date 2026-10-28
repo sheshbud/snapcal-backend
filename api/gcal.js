@@ -21,7 +21,9 @@ function toGoogleEvent(e, tz) {
     ev.start = { dateTime: `${e.date}T${e.time}:00`, timeZone: tz };
     ev.end = { dateTime: `${e.date}T${addHour(e.time)}:00`, timeZone: tz };
   }
-  if (e.remind) ev.reminders = { useDefault: false, overrides: [{ method: "popup", minutes: parseInt(e.remind, 10) }] };
+  // remind may hold several values as "10,60,1440"
+  const mins = String(e.remind || "").split(",").map((v) => parseInt(v, 10)).filter((v) => Number.isFinite(v) && v >= 0).slice(0, 5);
+  if (mins.length) ev.reminders = { useDefault: false, overrides: mins.map((m) => ({ method: "popup", minutes: m })) };
   return ev;
 }
 
