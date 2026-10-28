@@ -53,11 +53,21 @@ module.exports = async (req, res) => {
   try {
     const body = typeof req.body === "string" ? JSON.parse(req.body || "{}") : (req.body || {});
     const { image, mediaType, isPdf } = body;
-    if (!image) return res.status(400).json({ error: "No image data sent" });
-    if (image.length > 7_000_000) return res.status(413).json({ error: "Image too large" });
+    // Pasted or uploaded text takes the text path; the image path is unchanged.
+    const pasted = typeof body.text === "string" ? body.text.trim() : "";
+    const isText = pasted.length > 0;
+    if (isText) {
+      if (pasted.length > 20000) return res.status(413).json({ error: "That text is too long. Trim it under 20,000 characters." });
+    } else {
+      if (!image) return res.status(400).json({ error: "No image data sent" });
+      if (image.length > 7_000_000) return res.status(413).json({ error: "Image too large" });
+    }
 
     const today = new Date().toISOString().slice(0, 10);
-    const prompt = `Look at this document (a schedule, calendar, syllabus, or similar). Do not transcribe the body text. Do two jobs:
+    const intro = isText
+      ? "Read the schedule text below (a schedule, calendar, syllabus, or similar). Do not transcribe it back. Do two jobs:"
+      : "Look at this document (a schedule, calendar, syllabus, or similar). Do not transcribe the body text. Do two jobs:";
+    const prompt = `${intro}
 1) Read the big title or header and turn it into a short calendar name (e.g. "Millbrook Athletics May 2024").
 2) Read the month and year, then list EVERY dated item on the page.
 
@@ -74,9 +84,14 @@ Rules:
 - "h" is null unless a clock time is shown. TBD or no time means null. Never invent times.
 - Skip empty "No Events" cells. Deduplicate. Be thorough: capture every dated entry, even on a packed calendar.`;
 
-    const block = isPdf
-      ? { type: "document", source: { type: "base64", media_type: "application/pdf", data: image } }
-      : { type: "image", source: { type: "base64", media_type: mediaType || "image/jpeg", data: image } };
+    const content = isText
+      ? [{ type: "text", text: prompt + "\n\nSchedule text:\n" + pasted }]
+      : [
+          isPdf
+            ? { type: "document", source: { type: "base64", media_type: "application/pdf", data: image } }
+            : { type: "image", source: { type: "base64", media_type: mediaType || "image/jpeg", data: image } },
+          { type: "text", text: prompt },
+        ];
 
     const apiResp = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
@@ -88,25 +103,25 @@ Rules:
       body: JSON.stringify({
         model: "claude-sonnet-4-6", // confirm current id at docs.claude.com/en/docs/about-claude/models
         max_tokens: 4096,
-        messages: [{ role: "user", content: [block, { type: "text", text: prompt }] }],
+        messages: [{ role: "user", content }],
       }),
     });
 
     const data = await apiResp.json();
     if (data.error) return res.status(502).json({ error: data.error.message || "Model error" });
 
-    const text = (data.content || []).filter((b) => b.type === "text").map((b) => b.text).join("\n");
+    const outText = (data.content || []).filter((b) => b.type === "text").map((b) => b.text).join("\n");
     let items = [], cal = "";
-    const oa = text.indexOf("{"), oz = text.lastIndexOf("}");
+    const oa = outText.indexOf("{"), oz = outText.lastIndexOf("}");
     let obj = null;
-    if (oa !== -1 && oz > oa) { try { obj = JSON.parse(text.slice(oa, oz + 1)); } catch (_) {} }
+    if (oa !== -1 && oz > oa) { try { obj = JSON.parse(outText.slice(oa, oz + 1)); } catch (_) {} }
     if (obj && Array.isArray(obj.items)) { items = obj.items; cal = obj.cal || ""; }
     else {
-      const a = text.indexOf("["), z = text.lastIndexOf("]");
-      const slice = a !== -1 ? text.slice(a, z > a ? z + 1 : text.length) : text;
+      const a = outText.indexOf("["), z = outText.lastIndexOf("]");
+      const slice = a !== -1 ? outText.slice(a, z > a ? z + 1 : outText.length) : outText;
       try { items = JSON.parse(slice); }
       catch (_) { items = (slice.match(/\{[^{}]*\}/g) || []).map((m) => { try { return JSON.parse(m); } catch (e) { return null; } }).filter(Boolean); }
-      const cm = text.match(/"cal"\s*:\s*"([^"]+)"/); if (cm) cal = cm[1];
+      const cm = outText.match(/"cal"\s*:\s*"([^"]+)"/); if (cm) cal = cm[1];
     }
 
     const events = sanitizeEvents(items); // validate + strip injection before returning
