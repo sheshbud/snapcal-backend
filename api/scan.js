@@ -76,8 +76,8 @@ Today is ${today}.
 Return ONLY one compact JSON object. No prose, no explanation, no code fences:
 {"cal":"short calendar name from the title","items":[{"t":"short title","d":"YYYY-MM-DD","h":"HH:MM 24h or null","y":"type"}]}
 
-"y" must be one of: assignment, exam, quiz, reading, project, class, event, holiday, payment, other.
-Use "event" for games, matches, activities, meetings, pep rallies, banquets, performances. Use "exam" for tests, midterms, finals.
+"y" must be one of: assignment, exam, quiz, reading, project, presentation, class, event, holiday, payment, other.
+Use "presentation" for presentations, case presentations, pitches, demos, oral reports, defenses. Use "event" for games, matches, activities, meetings, pep rallies, banquets. Use "exam" for tests, midterms, finals.
 
 Rules:
 - Use the month and year shown in the document. If a year is missing, pick the next occurrence on or after today.

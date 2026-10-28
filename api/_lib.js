@@ -3,7 +3,7 @@
 // it strips control characters, enforces a strict schema, drops instruction-like
 // text (prompt-injection attempts hidden in an uploaded image), and caps volume.
 
-const TYPES = ["assignment", "exam", "quiz", "reading", "project", "class", "event", "holiday", "payment", "other"];
+const TYPES = ["assignment", "exam", "quiz", "reading", "project", "presentation", "class", "event", "holiday", "payment", "other"];
 
 // Patterns that look like an instruction to the model rather than a real event title.
 const INJECTION = /(ignore\s+(all|previous|above|prior)|disregard\s+(the|all|previous)|system\s*prompt|you\s+are\s+now|assistant\s*:|<\s*\/?\s*script|javascript:|data:text\/html|prompt\s*inject|override\s+(the|your)|new\s+instructions)/i;
