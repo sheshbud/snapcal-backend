@@ -1,0 +1,14 @@
+name: semgrep
+on:
+  push:
+  pull_request:
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: pipx install semgrep
+      - name: Verify the custom taint rule still matches its ruleid/ok test cases
+        run: semgrep --test --config semgrep-rules semgrep-rules
+      - name: Scan the API for unsanitized model output
+        run: semgrep scan --config semgrep-rules --config p/javascript --error --metrics=off api/
