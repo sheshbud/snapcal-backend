@@ -16,6 +16,18 @@ function isRealDate(s) {
   return dt.getUTCFullYear() === y && dt.getUTCMonth() === m - 1 && dt.getUTCDate() === d;
 }
 
+// Sanitize a single model-produced string (e.g. the calendar name). Same guarantees
+// sanitizeEvents() gives a title: no control characters, collapsed whitespace, length
+// capped, and instruction-like text dropped entirely rather than passed to the client.
+function sanitizeText(v, max = 80) {
+  const s = String(v == null ? "" : v)
+    .replace(/[\u0000-\u001F\u007F]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, max);
+  return INJECTION.test(s) ? "" : s;
+}
+
 function cleanRemind(v) {
   const n = parseInt(v, 10);
   if (Number.isFinite(n) && n >= 0 && n <= 40320) return String(n); // up to 4 weeks
@@ -51,4 +63,4 @@ function sanitizeEvents(items) {
   return out;
 }
 
-module.exports = { TYPES, sanitizeEvents, isRealDate };
+module.exports = { TYPES, sanitizeEvents, sanitizeText, isRealDate };

@@ -1,0 +1,23 @@
+rules:
+  - id: unsanitized-model-output
+    mode: taint
+    languages: [javascript]
+    severity: ERROR
+    message: >-
+      Model-generated value reaches an API response or a calendar write without passing through
+      sanitizeEvents(). A syllabus photo is attacker-controlled input, so anything the model
+      echoes back is untrusted: route it through sanitizeEvents() first.
+    metadata:
+      category: security
+      cwe: "CWE-20: Improper Input Validation"
+      owasp: "LLM01: Prompt Injection"
+      confidence: HIGH
+    pattern-sources:
+      - pattern: JSON.parse(...)
+      - pattern: $OUT.match(...)
+    pattern-sanitizers:
+      - pattern: sanitizeEvents(...)
+      - pattern: sanitizeText(...)
+    pattern-sinks:
+      - pattern: res.status(...).json(...)
+      - pattern: $CAL.events.insert(...)

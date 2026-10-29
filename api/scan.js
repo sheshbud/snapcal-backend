@@ -11,7 +11,7 @@
 // and rejects oversized payloads. For durable limits across all servers, add
 // Upstash Redis later (see REVIEW-CHECKLIST.md).
 
-const { sanitizeEvents } = require("./_lib.js");
+const { sanitizeEvents, sanitizeText } = require("./_lib.js");
 
 const WINDOW_MS = 60 * 60 * 1000; // 1 hour
 const MAX_PER_WINDOW = 25;        // scans per device/IP per hour
@@ -108,7 +108,10 @@ Rules:
     });
 
     const data = await apiResp.json();
-    if (data.error) return res.status(502).json({ error: data.error.message || "Model error" });
+    if (data.error) {
+      console.error("model error:", data.error.message);
+      return res.status(502).json({ error: "Model error" }); // do not echo model text to the client
+    }
 
     const outText = (data.content || []).filter((b) => b.type === "text").map((b) => b.text).join("\n");
     let items = [], cal = "";
@@ -126,7 +129,7 @@ Rules:
 
     const events = sanitizeEvents(items); // validate + strip injection before returning
 
-    return res.status(200).json({ cal, items: events });
+    return res.status(200).json({ cal: sanitizeText(cal), items: events });
   } catch (e) {
     return res.status(500).json({ error: e.message || "Server error" });
   }
